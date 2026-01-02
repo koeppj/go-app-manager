@@ -27,9 +27,6 @@ $ldflags = "-X github.com/koeppj/go-app-manager/internal/app.BuildVersion=$Versi
 $ldflags += " -X github.com/koeppj/go-app-manager/internal/app.BuildCommit=$commit"
 $ldflags += " -X github.com/koeppj/go-app-manager/internal/app.BuildDate=$buildDate"
 
-Write-Host "Building service..."
-go build -ldflags $ldflags -o (Join-Path $OutputDir "service.exe") .\cmd\service
-
 Write-Host "Building tray..."
 go build -ldflags $ldflags -o (Join-Path $OutputDir "tray.exe") .\cmd\tray
 

@@ -1,30 +1,32 @@
 # Go App Manager (Windows)
 
-Windows-only utility that runs as a service (Session 0) to manage a list of executables via a secured HTTPS API and serves a small web UI. A separate tray agent runs in the user session to control the service.
+Windows-only utility that runs entirely under the interactive user session (tray app). The tray hosts the HTTPS API + web UI and manages configured executables (start/stop/restart/status) using Windows Job Objects.
 
 ## Features
 - HTTPS-only API + web UI with bearer auth and CIDR allowlist.
-- Job Object–backed process management (start/stop/restart/status).
-- Windows service install helpers and tray agent for interactive control.
+- Job Object–backed process management to avoid orphaned processes.
+- Tray-driven deployment (no Windows service required).
 
 ## Repository Layout
-- `cmd/service`: Windows service entrypoint (SCM-aware).
-- `cmd/tray`: Tray agent entrypoint (systray UI + API client).
-- `internal/app`: Config, logging, security, HTTP server, process manager, installer helpers.
+- `cmd/tray`: Tray entrypoint (hosts API + web UI + systray controls).
+- `internal/app`: Config, logging, security, HTTP server, process manager.
 - `internal/trayui`: Tray UI and API client.
-- `web/ui/static`: Embedded SPA served by the service.
-- `scripts`: Install/uninstall/dev and self-signed cert helper.
+- `web/ui/static`: Embedded SPA served by the tray-hosted server.
+- `scripts`: Install/uninstall/dev/build and self-signed cert helper.
 - `assets/sample-config.yaml`: Example configuration.
 
 ## Prerequisites
 - Go 1.25+ on Windows.
-- Administrative rights to install the service and scheduled task for the tray.
+- Rights to register a logon scheduled task for the tray (optional convenience).
 
 ## Build
 ```powershell
 go mod tidy
-go build -ldflags "-X github.com/koeppj/go-app-manager/internal/app.BuildVersion=1.0.0" -o dist\service.exe .\cmd\service
 go build -ldflags "-X github.com/koeppj/go-app-manager/internal/app.BuildVersion=1.0.0" -o dist\tray.exe .\cmd\tray
+```
+or
+```powershell
+.\scripts\build.ps1 -Version 1.0.0
 ```
 
 ## Configuration
@@ -40,32 +42,30 @@ go build -ldflags "-X github.com/koeppj/go-app-manager/internal/app.BuildVersion
 
 ## Running (dev/console)
 ```powershell
-.\scripts\dev-run.ps1 -ConfigPath "C:\ProgramData\GoAppManager\config\config.yaml"
+.\scripts\dev-run.ps1 -ConfigPath "C:\ProgramData\GoAppManager\config\config.yaml" -CaPath "C:\ProgramData\GoAppManager\certs\server.crt"
 ```
-Runs in console with logging to `C:\ProgramData\GoAppManager\logs\`.
+Runs the tray (with systray icon) and hosts the API/UI. Logs go to `C:\ProgramData\GoAppManager\logs\`.
 
 ## Install / Uninstall
 ```powershell
-# Install service + tray (generates token/certs if missing)
+# Install tray (generates token/certs if missing; registers logon task)
 .\scripts\install.ps1 -Version 1.0.0 -ConfigPath "C:\ProgramData\GoAppManager\config\config.yaml"
 
-# Uninstall service + tray task
+# Uninstall tray task
 .\scripts\uninstall.ps1
 ```
-- Service name: `GoAppManager` (display: `Go App Manager Service`).
-- Service flags available via `service.exe`: `--install`, `--uninstall`, `--start`, `--stop`, `--console`, `--config`.
+- Scheduled task name: `GoAppManagerTray`.
 
 ## Tray Agent
-- Installed as a scheduled task (`GoAppManagerTray`) at user logon.
-- Flags: `--service-url https://host:8443`, `--token <bearer>`, `--ca <custom CA>`.
-- Provides menu actions Start/Stop/Restart per program and “Open Web UI”.
+- Hosts HTTPS API + web UI and provides systray menu actions (Start/Stop/Restart per program, Open Web UI).
+- Flags: `--config`, `--service-url` (override), `--token` (override), `--ca` (custom CA; defaults to server cert).
 
 ## Web UI
-- Served from the service at `/` on the configured HTTPS port.
+- Served from the tray at `/` on the configured HTTPS port.
 - Paste the bearer token in the UI to authenticate; lists programs and allows control.
 
 ## Security Notes
 - HTTPS is mandatory; HTTP is not supported.
 - Bearer token required for `/api/*`.
-- CIDR allowlist enforced; empty list denies all.
+- CIDR allowlist enforced; include loopback if you access via `localhost`.
 - Optional client CA in config for mTLS-ready deployments.

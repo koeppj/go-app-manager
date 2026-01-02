@@ -16,17 +16,18 @@ import (
 	"github.com/koeppj/go-app-manager/internal/trayui/icons"
 )
 
-// Run starts the tray UI.
-func Run(serviceURL, token, ca string) error {
+// Run starts the tray UI with optional shutdown hook.
+func Run(serviceURL, token, ca string, onShutdown func()) error {
 	client, err := NewAPIClient(serviceURL, token, ca)
 	if err != nil {
 		return err
 	}
 	app := &trayApp{
-		client:   client,
-		baseURL:  serviceURL,
-		programs: map[string]*programMenu{},
-		quitCh:   make(chan struct{}),
+		client:     client,
+		baseURL:    serviceURL,
+		programs:   map[string]*programMenu{},
+		quitCh:     make(chan struct{}),
+		onShutdown: onShutdown,
 	}
 	systray.Run(app.onReady, app.onExit)
 	return nil
@@ -40,6 +41,8 @@ type trayApp struct {
 
 	openUI *systray.MenuItem
 	quit   *systray.MenuItem
+
+	onShutdown func()
 }
 
 type programMenu struct {
@@ -68,6 +71,9 @@ func (t *trayApp) onReady() {
 
 func (t *trayApp) onExit() {
 	close(t.quitCh)
+	if t.onShutdown != nil {
+		t.onShutdown()
+	}
 }
 
 func (t *trayApp) buildProgramMenus() {
@@ -165,4 +171,9 @@ func programTitle(p process.ProgramStatus) string {
 		status = fmt.Sprintf("running (PID %d)", p.PID)
 	}
 	return fmt.Sprintf("%s - %s", p.Name, status)
+}
+
+// Quit exits the systray loop.
+func Quit() {
+	systray.Quit()
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"math/big"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ import (
 func main() {
 	certPath := flag.String("cert", "server.crt", "cert file")
 	keyPath := flag.String("key", "server.key", "key file")
-	hosts := flag.String("host", "localhost", "comma separated hosts")
+	hosts := flag.String("host", "localhost", "comma separated hosts (DNS or IP)")
 	flag.Parse()
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -25,14 +26,29 @@ func main() {
 	}
 
 	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
+	hostList := strings.Split(*hosts, ",")
+	var dnsNames []string
+	var ipAddrs []net.IP
+	for _, h := range hostList {
+		h = strings.TrimSpace(h)
+		if ip := net.ParseIP(h); ip != nil {
+			ipAddrs = append(ipAddrs, ip)
+		} else if h != "" {
+			dnsNames = append(dnsNames, h)
+		}
+	}
+
 	template := x509.Certificate{
 		SerialNumber: serial,
 		Subject:      pkix.Name{CommonName: "Go App Manager"},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		DNSNames:     strings.Split(*hosts, ","),
+		DNSNames:     dnsNames,
+		IPAddresses:  ipAddrs,
+		IsCA:         true,
+		BasicConstraintsValid: true,
 	}
 
 	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
