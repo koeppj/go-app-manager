@@ -1,0 +1,22 @@
+server:
+  bind: "0.0.0.0"
+  port: 8443
+  publicBaseUrl: "https://yourhost:8443"
+  tls:
+    enabled: true
+    certFile: "C:\\ProgramData\\GoAppManager\\certs\\server.crt"
+    keyFile: "C:\\ProgramData\\GoAppManager\\certs\\server.key"
+  auth:
+    bearerTokenFile: "C:\\ProgramData\\GoAppManager\\secrets\\api.token"
+  network:
+    allowedCIDRs:
+      - "192.168.1.0/24"
+
+programs:
+  - name: "nginx"
+    command: "C:\\Tools\\nginx\\nginx.exe"
+    args: ["-c", "C:\\Tools\\nginx\\conf\\nginx.conf"]
+    workDir: "C:\\Tools\\nginx"
+    stop:
+      method: "jobobject"
+      timeoutSeconds: 10

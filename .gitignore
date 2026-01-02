@@ -1,0 +1,29 @@
+# Binaries and build artifacts
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build cache and modules
+bin/
+pkg/
+*.test
+
+# IDE/editor junk
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Local configuration and secrets
+etc/
+*.crt
+*.key
+*.token
